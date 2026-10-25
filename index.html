@@ -55,7 +55,7 @@ h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance}
 .leaflet-container{font-family:var(--f-body);background:#EEF0EC}
 .leaflet-control-attribution{font-size:10px}
 /* App instalada en el iPhone: el mapa llega hasta arriba, bajo la hora y la batería, con un degradado suave para que se lean */
-body::before{content:"";position:fixed;left:0;right:0;top:0;height:env(safe-area-inset-top,0px);background:linear-gradient(rgba(0,0,0,.30),rgba(0,0,0,.06) 70%,rgba(0,0,0,0));z-index:950;pointer-events:none}
+body::before{content:"";position:fixed;left:0;right:0;top:0;height:calc(env(safe-area-inset-top,0px) * .8);background:linear-gradient(rgba(0,0,0,.22),rgba(0,0,0,0));z-index:950;pointer-events:none}
 .map-error{position:fixed;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:var(--muted);z-index:1}
 
 /* Barra superior */
@@ -287,7 +287,8 @@ textarea.in{min-height:76px;resize:vertical}
 h1,h2,h3{font-weight:500;letter-spacing:-.035em}
 .brand{background:var(--green);color:var(--green-ink);border-radius:999px;padding:0 16px}
 .brand h1{font-weight:600;font-size:17px;letter-spacing:-.02em}
-.search{border:0;border-radius:999px;background:var(--surface)}
+.search{border:0;border-radius:999px;background:var(--surface);box-shadow:0 4px 14px rgba(0,0,0,.14)}
+.btn-add{box-shadow:0 4px 14px rgba(0,0,0,.14)}
 .btn-add{background:var(--green);color:var(--green-ink);border-radius:999px;font-weight:600}
 .side{background:var(--bg);border-right:0;box-shadow:none}
 .side-head{border-bottom:0}
@@ -461,7 +462,7 @@ h1,h2,h3{font-weight:500;letter-spacing:-.035em}
             </div>
             <div id="urlBox" hidden style="display:flex;flex-direction:column;gap:6px;margin-top:6px">
               <input class="in" id="fUrl" type="url" placeholder="https://www.google.com/maps/place/…">
-              <div class="msg" id="urlMsg">En Google Maps: Compartir → Copiar enlace. En el ordenador, copia la dirección de la barra del navegador.</div>
+              <div class="msg" id="urlMsg">En Google Maps: Compartir → Copiar. Vale el enlace corto o el largo.</div>
             </div>
           </div>
         </div>
@@ -1299,7 +1300,7 @@ async function searchPlaces(q){
 
 /* Enlace de Google Maps */
 $("#btnShowUrl").onclick = () => { $("#urlBox").hidden = false; $("#fUrl").focus(); };
-$("#fUrl").addEventListener("input", e => handleUrl(e.target.value.trim()));
+$("#fUrl").addEventListener("input", e => { clearTimeout(urlTimer); const v = e.target.value.trim(); urlTimer = setTimeout(() => handleUrl(v), 350); });
 function parseGmaps(url){
   const out = {};
   out.reserve = /google\.[a-z.]+\/maps\/reserve\//i.test(url);
@@ -1314,9 +1315,43 @@ function parseGmaps(url){
   out.short = /goo\.gl|maps\.app/i.test(url);
   return out;
 }
-function handleUrl(url){
+let urlTimer = null, urlSeq = 0;
+/* Abre un enlace corto de Google Maps (maps.app.goo.gl) a través de un servicio público y saca la dirección larga o los datos del sitio */
+async function expandShort(short){
+  const enc = encodeURIComponent(short);
+  const fromHtml = html => {
+    if (!html) return null;
+    let m = html.match(/https:\/\/www\.google\.[a-z.]+\/maps\/place\/[^"'\\\s<>]+/);
+    if (m) return m[0].replace(/&amp;/g, "&");
+    const c = html.match(/center=(-?\d+\.\d+)(?:%2C|,)(-?\d+\.\d+)/);
+    const t = html.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:title"/) || html.match(/property="og:title"[^>]+content="([^"]+)"/);
+    if (c){
+      const title = t ? t[1].replace(/&amp;/g,"&").replace(/&#39;/g,"'") : "";
+      const [name, ...rest] = title.split(" · ");
+      return `https://www.google.com/maps/place/${encodeURIComponent([name, rest.join(", ")].filter(Boolean).join(", "))}/@${c[1]},${c[2]},17z`;
+    }
+    return null;
+  };
+  const tries = [
+    async () => { const r = await fetch("https://api.allorigins.win/get?url=" + enc); const d = await r.json();
+      const u = d && d.status && d.status.url; if (u && /google\.[a-z.]+\/maps/.test(u) && !/goo\.gl/.test(u)) return u; return fromHtml(d && d.contents); },
+    async () => { const r = await fetch("https://corsproxy.io/?url=" + enc); return fromHtml(await r.text()); }
+  ];
+  for (const t of tries){
+    const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 9000);
+    try { const u = await Promise.race([t(), new Promise((_,rej) => ctl.signal.addEventListener("abort", () => rej(new Error("tiempo"))))]); if (u) return u; }
+    catch(_){} finally { clearTimeout(timer); }
+  }
+  return null;
+}
+async function handleUrl(text){
   const msg = $("#urlMsg");
-  if (!url){ msg.className="msg"; return; }
+  if (!text){ msg.className="msg"; return; }
+  const seq = ++urlSeq;
+  // Admite el texto completo que copia «Compartir» (nombre, dirección y enlace)
+  const um = text.match(/https?:\/\/\S+/);
+  const url = um ? um[0] : text;
+  const extra = um ? text.replace(um[0], " ").replace(/\s+/g, " ").trim() : "";
   const g = parseGmaps(url);
   if (g.lat != null){
     let name = g.name || "", address = "";
@@ -1324,11 +1359,18 @@ function handleUrl(url){
     setLoc({lat:g.lat, lng:g.lng, name, address, gmapsUrl: g.reserve ? "" : url, fresh:true});
     msg.className = "msg"; msg.textContent = "Ubicación sacada del enlace.";
   } else if (g.short){
+    msg.className = "msg"; msg.textContent = "Abriendo el enlace corto…";
+    const longUrl = await expandShort(url);
+    if (seq !== urlSeq) return;
+    if (longUrl && !/goo\.gl/.test(longUrl)){ await handleUrl(longUrl); if (seq === urlSeq && form.loc) form.loc.gmapsUrl = url; return; }
+    if (extra){ $("#fSearch").value = extra.slice(0, 80); searchPlaces(extra.slice(0, 80)); msg.className = "msg"; msg.textContent = "No he podido abrir el enlace; lo he buscado por el nombre que venía con él."; return; }
     msg.className = "msg err";
-    msg.textContent = "Los enlaces cortos (maps.app.goo.gl) no se pueden leer desde aquí. Ábrelo en el navegador y copia la dirección larga, o busca el sitio por su nombre.";
+    msg.textContent = "No he podido abrir este enlace corto ahora. Prueba otra vez en un momento, búscalo por nombre y calle, o márcalo en el mapa.";
   } else if (g.name){
     $("#fSearch").value = g.name; searchPlaces(g.name);
     msg.className = "msg"; msg.textContent = "El enlace no trae coordenadas; lo he buscado por su nombre arriba.";
+  } else if (extra){
+    $("#fSearch").value = extra.slice(0, 80); searchPlaces(extra.slice(0, 80));
   } else {
     msg.className = "msg err"; msg.textContent = "No reconozco este enlace. Debe ser de Google Maps.";
   }
