@@ -55,7 +55,7 @@ h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance}
 .leaflet-container{font-family:var(--f-body);background:#EEF0EC}
 .leaflet-control-attribution{font-size:10px}
 /* App instalada en el iPhone: el mapa llega hasta arriba, bajo la hora y la batería, con un degradado suave para que se lean */
-body::before{content:"";position:fixed;left:0;right:0;top:0;height:calc(env(safe-area-inset-top,0px) * 1.5);background:linear-gradient(rgba(0,0,0,.32),rgba(0,0,0,0));z-index:950;pointer-events:none}
+body::before{content:"";position:fixed;left:0;right:0;top:0;height:env(safe-area-inset-top,0px);background:linear-gradient(rgba(0,0,0,.30),rgba(0,0,0,.06) 70%,rgba(0,0,0,0));z-index:950;pointer-events:none}
 .map-error{position:fixed;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:var(--muted);z-index:1}
 
 /* Barra superior */
