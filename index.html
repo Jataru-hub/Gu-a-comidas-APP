@@ -158,6 +158,7 @@ body.side-closed .toggle-side svg{transform:rotate(180deg)}
 .empty{padding:28px 16px;text-align:center;color:var(--muted)}
 .empty h3{color:var(--ink);font-size:18px;margin-bottom:6px}
 .side-foot{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;padding:10px 16px calc(var(--sab) + 12px);border-top:1px solid var(--line)}
+.ver{width:100%;text-align:center;font-size:11.5px;color:var(--muted);opacity:.8;font-variant-numeric:tabular-nums}
 .link-btn{border:0;background:transparent;color:var(--muted);font-size:13px;text-decoration:underline;padding:4px 6px}
 
 /* Ficha */
@@ -417,6 +418,7 @@ h1,h2,h3{font-weight:500;letter-spacing:-.035em}
     <button class="link-btn" id="btnExport" type="button">Guardar copia de seguridad</button>
     <button class="link-btn" id="btnImport" type="button">Restaurar copia</button>
     <input type="file" id="fileImport" accept="application/json,.json" hidden>
+    <span class="ver" id="appVer"></span>
   </div>
 </aside>
 <button class="toggle-side" id="toggleSide" type="button" aria-label="Plegar o desplegar la lista">
@@ -570,6 +572,8 @@ h1,h2,h3{font-weight:500;letter-spacing:-.035em}
 <script>
 (function(){
 "use strict";
+/* Súbelo en cada cambio: se ve abajo del todo, en la lista, para saber si el móvil ya tiene la última versión */
+const APP_VERSION = "Versión 6 · 25 oct 2026";
 const KEY = "guia-comidas-v1";
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1449,6 +1453,7 @@ $("#fileImport").addEventListener("change", async e => {
 let toastT = null;
 function toast(t){ const el=$("#toast"); el.textContent=t; el.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>el.hidden=true, 2200); }
 
+$("#appVer").textContent = APP_VERSION;
 renderFilters();
 renderAll();
 if (!storageOk) toast("Este navegador no deja guardar datos");
