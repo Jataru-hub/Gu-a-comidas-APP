@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Guía Comidas">
 <meta name="theme-color" content="#111111">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
@@ -54,6 +54,8 @@ h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance}
 #map{position:fixed;inset:0;background:#EEF0EC;z-index:0}
 .leaflet-container{font-family:var(--f-body);background:#EEF0EC}
 .leaflet-control-attribution{font-size:10px}
+/* App instalada en el iPhone: el mapa llega hasta arriba, bajo la hora y la batería, con un degradado suave para que se lean */
+body::before{content:"";position:fixed;left:0;right:0;top:0;height:calc(env(safe-area-inset-top,0px) * 1.5);background:linear-gradient(rgba(0,0,0,.32),rgba(0,0,0,0));z-index:950;pointer-events:none}
 .map-error{position:fixed;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:var(--muted);z-index:1}
 
 /* Barra superior */
