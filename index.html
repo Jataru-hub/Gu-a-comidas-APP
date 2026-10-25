@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Guía Comidas">
@@ -46,6 +46,10 @@
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--f-body);overflow:hidden;-webkit-tap-highlight-color:transparent}
 button,input,select,textarea{font:inherit;color:inherit}
+/* 16 px como mínimo: así el iPhone no hace zoom al tocar un campo */
+input,select,textarea{font-size:16px}
+html{-webkit-text-size-adjust:100%}
+body{touch-action:manipulation}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--green);outline-offset:2px}
 [hidden]{display:none!important}
@@ -55,7 +59,7 @@ h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance}
 .leaflet-container{font-family:var(--f-body);background:#EEF0EC}
 .leaflet-control-attribution{font-size:10px}
 /* App instalada en el iPhone: el mapa llega hasta arriba, bajo la hora y la batería, con un degradado suave para que se lean */
-body::before{content:"";position:fixed;left:0;right:0;top:0;height:calc(env(safe-area-inset-top,0px) * .8);background:linear-gradient(rgba(0,0,0,.22),rgba(0,0,0,0));z-index:950;pointer-events:none}
+body::before{content:"";position:fixed;left:0;right:0;top:0;height:max(0px, calc(env(safe-area-inset-top,0px) - 12px));background:linear-gradient(rgba(0,0,0,.24),rgba(0,0,0,.08) 65%,rgba(0,0,0,0));z-index:950;pointer-events:none}
 .map-error{position:fixed;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:var(--muted);z-index:1}
 
 /* Barra superior */
@@ -230,6 +234,7 @@ textarea.in{min-height:76px;resize:vertical}
 .loc-chosen{display:flex;gap:10px;align-items:flex-start;background:var(--green-soft);border-radius:12px;padding:10px 12px}
 .loc-chosen div{min-width:0;flex:1}
 .loc-chosen b{display:block}
+.loc-btns{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
 .loc-chosen small{color:var(--muted);word-break:break-word}
 .results{display:flex;flex-direction:column;gap:2px;max-height:240px;overflow:auto}
 .result{border:0;background:transparent;text-align:left;padding:8px 10px;border-radius:10px;display:flex;flex-direction:column}
@@ -288,8 +293,8 @@ textarea.in{min-height:76px;resize:vertical}
 h1,h2,h3{font-weight:500;letter-spacing:-.035em}
 .brand{background:var(--green);color:var(--green-ink);border-radius:999px;padding:0 16px}
 .brand h1{font-weight:600;font-size:17px;letter-spacing:-.02em}
-.search{border:0;border-radius:999px;background:var(--surface);box-shadow:0 4px 14px rgba(0,0,0,.14)}
-.btn-add{box-shadow:0 4px 14px rgba(0,0,0,.14)}
+.search{border:0;border-radius:999px;background:var(--surface);box-shadow:0 8px 14px -6px rgba(0,0,0,.22)}
+.btn-add{box-shadow:0 8px 14px -6px rgba(0,0,0,.22)}
 .btn-add{background:var(--green);color:var(--green-ink);border-radius:999px;font-weight:600}
 .side{background:var(--bg);border-right:0;box-shadow:none}
 .side-head{border-bottom:0}
@@ -450,21 +455,22 @@ h1,h2,h3{font-weight:500;letter-spacing:-.035em}
           <div class="loc-chosen" id="locChosen" hidden>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>
             <div><b id="locName"></b><small id="locAddr"></small></div>
-            <button type="button" class="link-btn" id="btnLocChange">Cambiar</button>
+            <div class="loc-btns"><button type="button" class="link-btn" id="btnLocAdjust">Ajustar</button><button type="button" class="link-btn" id="btnLocChange">Cambiar</button></div>
           </div>
+          <div class="msg" id="locHint" hidden></div>
           <div id="locSearch">
-            <input class="in" id="fSearch" type="search" placeholder="Busca el sitio: «Pizzería Mamma Mia Malasaña»" autocomplete="off">
-            <div class="msg" id="searchMsg">Escribe el nombre y, si quieres, la zona o ciudad.</div>
+            <input class="in" id="fSearch" type="search" placeholder="Nombre del sitio o su dirección" autocomplete="off">
+            <div class="msg" id="searchMsg">Escribe el nombre o, si no sale, su dirección (calle y número).</div>
             <div class="results" id="results"></div>
             <div class="loc-alt">
               <span>¿No sale?</span>
               <button type="button" class="link-btn" id="btnPick">Marcarlo en el mapa</button>
               <span>o</span>
-              <button type="button" class="link-btn" id="btnShowUrl">pegar enlace de Google Maps</button>
+              <button type="button" class="link-btn" id="btnShowUrl">Google Maps</button>
             </div>
             <div id="urlBox" hidden style="display:flex;flex-direction:column;gap:6px;margin-top:6px">
-              <input class="in" id="fUrl" type="url" placeholder="https://www.google.com/maps/place/…">
-              <div class="msg" id="urlMsg">En Google Maps: Compartir → Copiar. Vale el enlace corto o el largo.</div>
+              <input class="in" id="fUrl" type="url" placeholder="https://maps.app.goo.gl/…">
+              <div class="msg" id="urlMsg">En Google Maps: Compartir → Copiar, y pégalo aquí.</div>
             </div>
           </div>
         </div>
@@ -573,7 +579,7 @@ h1,h2,h3{font-weight:500;letter-spacing:-.035em}
 (function(){
 "use strict";
 /* Súbelo en cada cambio: se ve abajo del todo, en la lista, para saber si el móvil ya tiene la última versión */
-const APP_VERSION = "Versión 6 · 25 oct 2026";
+const APP_VERSION = "Versión 7 · 25 oct 2026";
 const KEY = "guia-comidas-v1";
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1167,6 +1173,7 @@ const recTags = tagList("recDishes", "#tagsRecDish", "#fRecDishIn", "#btnRecDish
 
 function setLoc(loc){
   form.loc = loc;
+  locHint("");
   if (loc){
     $("#locChosen").hidden = false; $("#locSearch").hidden = true;
     $("#locName").textContent = loc.name || "Ubicación marcada";
@@ -1178,6 +1185,8 @@ function setLoc(loc){
   }
 }
 $("#btnLocChange").onclick = () => { setLoc(null); $("#fSearch").focus(); };
+$("#btnLocAdjust").onclick = () => startPick("adjust");
+function locHint(t){ const h = $("#locHint"); h.textContent = t || ""; h.hidden = !t; }
 
 function openForm(p, opts = {}){
   form.editing = p ? p.id : null;
@@ -1189,7 +1198,7 @@ function openForm(p, opts = {}){
   $("#fNotes").value = p?.notes || "";
   $("#fDishIn").value = ""; $("#fRecDishIn").value = "";
   $("#fSearch").value = ""; $("#results").innerHTML = ""; $("#fUrl").value = ""; $("#urlBox").hidden = true;
-  $("#searchMsg").textContent = "Escribe el nombre y, si quieres, la zona o ciudad."; $("#searchMsg").className = "msg";
+  $("#searchMsg").textContent = "Escribe el nombre o, si no sale, su dirección (calle y número)."; $("#searchMsg").className = "msg";
   $("#formErr").hidden = true;
   Object.assign(form, { type:p?.type||"Restaurante", other:false, status:p?.status||"visitado", price:p?.price||null, hunger:p?.hunger||null, back:p?.back||null, rating:p?.rating||0,
     dishes:[...(p?.dishes||[])], recDishes:[...(p?.recDishes||[])] });
@@ -1293,7 +1302,14 @@ async function searchPlaces(q){
       const kind = OSM_LABEL[pr.osm_value] || "";
       const b = document.createElement("button"); b.type="button"; b.className="result";
       b.innerHTML = `<span>${esc(pr.name || street || "Sin nombre")}</span><small>${esc([kind, address || pr.state || pr.country].filter(Boolean).join(" · "))}</small>`;
-      b.onclick = () => setLoc({lat, lng, name: pr.name || "", address, type: TYPE_FROM_OSM[pr.osm_value], osmType: pr.osm_type || "", osmId: pr.osm_id || "", fresh:true});
+      const isAddress = !pr.name || ["highway","place","building","boundary","landuse"].includes(pr.osm_key) || ["house","street"].includes(pr.type);
+      b.onclick = () => {
+        if (isAddress){
+          setLoc({lat, lng, name:"", address: address || pr.name || "", fresh:true});
+          $("#locName").textContent = "Dirección elegida";
+          locHint("Escribe abajo el nombre del sitio. Si la chincheta no cae justo en el local, pulsa «Ajustar».");
+        } else setLoc({lat, lng, name: pr.name || "", address, type: TYPE_FROM_OSM[pr.osm_value], osmType: pr.osm_type || "", osmId: pr.osm_id || "", fresh:true});
+      };
       box.appendChild(b);
     });
   } catch(e){
@@ -1320,33 +1336,17 @@ function parseGmaps(url){
   return out;
 }
 let urlTimer = null, urlSeq = 0;
-/* Abre un enlace corto de Google Maps (maps.app.goo.gl) a través de un servicio público y saca la dirección larga o los datos del sitio */
+/* Los enlaces cortos de Google Maps (maps.app.goo.gl) se abren con el Worker propio de Cloudflare.
+   Devuelve {url, name, address, lat, lng, approx}. */
+const SHORTLINK_API = "https://guia-comidas-enlaces.racksvibes.workers.dev/";
 async function expandShort(short){
-  const enc = encodeURIComponent(short);
-  const fromHtml = html => {
-    if (!html) return null;
-    let m = html.match(/https:\/\/www\.google\.[a-z.]+\/maps\/place\/[^"'\\\s<>]+/);
-    if (m) return m[0].replace(/&amp;/g, "&");
-    const c = html.match(/center=(-?\d+\.\d+)(?:%2C|,)(-?\d+\.\d+)/);
-    const t = html.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:title"/) || html.match(/property="og:title"[^>]+content="([^"]+)"/);
-    if (c){
-      const title = t ? t[1].replace(/&amp;/g,"&").replace(/&#39;/g,"'") : "";
-      const [name, ...rest] = title.split(" · ");
-      return `https://www.google.com/maps/place/${encodeURIComponent([name, rest.join(", ")].filter(Boolean).join(", "))}/@${c[1]},${c[2]},17z`;
-    }
-    return null;
-  };
-  const tries = [
-    async () => { const r = await fetch("https://api.allorigins.win/get?url=" + enc); const d = await r.json();
-      const u = d && d.status && d.status.url; if (u && /google\.[a-z.]+\/maps/.test(u) && !/goo\.gl/.test(u)) return u; return fromHtml(d && d.contents); },
-    async () => { const r = await fetch("https://corsproxy.io/?url=" + enc); return fromHtml(await r.text()); }
-  ];
-  for (const t of tries){
-    const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 9000);
-    try { const u = await Promise.race([t(), new Promise((_,rej) => ctl.signal.addEventListener("abort", () => rej(new Error("tiempo"))))]); if (u) return u; }
-    catch(_){} finally { clearTimeout(timer); }
-  }
-  return null;
+  const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 12000);
+  try {
+    const r = await fetch(SHORTLINK_API + "?url=" + encodeURIComponent(short), {signal: ctl.signal});
+    const d = await r.json();
+    return d && !d.error ? d : null;
+  } catch(_){ return null; }
+  finally { clearTimeout(timer); }
 }
 async function handleUrl(text){
   const msg = $("#urlMsg");
@@ -1363,10 +1363,22 @@ async function handleUrl(text){
     setLoc({lat:g.lat, lng:g.lng, name, address, gmapsUrl: g.reserve ? "" : url, fresh:true});
     msg.className = "msg"; msg.textContent = "Ubicación sacada del enlace.";
   } else if (g.short){
-    msg.className = "msg"; msg.textContent = "Abriendo el enlace corto…";
-    const longUrl = await expandShort(url);
+    msg.className = "msg"; msg.textContent = "Abriendo el enlace…";
+    const d = await expandShort(url);
     if (seq !== urlSeq) return;
-    if (longUrl && !/goo\.gl/.test(longUrl)){ await handleUrl(longUrl); if (seq === urlSeq && form.loc) form.loc.gmapsUrl = url; return; }
+    if (d && typeof d.lat === "number"){
+      setLoc({lat:d.lat, lng:d.lng, name:d.name || "", address:d.address || "", gmapsUrl:d.url || url, fresh:true});
+      msg.className = "msg"; msg.textContent = "Sitio sacado del enlace.";
+      if (d.approx) locHint("La chincheta está en la dirección del sitio. Si no cae justo en el local, pulsa «Ajustar».");
+      return;
+    }
+    if (d && (d.name || d.address)){
+      const q = [d.name, d.address].filter(Boolean).join(", ").slice(0, 100);
+      $("#fSearch").value = d.address || q; searchPlaces(d.address || q);
+      if (d.name && !$("#fName").value.trim()) $("#fName").value = d.name;
+      msg.className = "msg"; msg.textContent = "No he podido situarlo solo; elige su dirección en la lista de arriba.";
+      return;
+    }
     if (extra){ $("#fSearch").value = extra.slice(0, 80); searchPlaces(extra.slice(0, 80)); msg.className = "msg"; msg.textContent = "No he podido abrir el enlace; lo he buscado por el nombre que venía con él."; return; }
     msg.className = "msg err";
     msg.textContent = "No he podido abrir este enlace corto ahora. Prueba otra vez en un momento, búscalo por nombre y calle, o márcalo en el mapa.";
@@ -1381,19 +1393,38 @@ async function handleUrl(text){
 }
 
 /* Marcar en el mapa */
-$("#btnPick").onclick = () => {
+let pickMode = "new", pickMarker = null;
+function startPick(mode){
   if (!map){ $("#searchMsg").className="msg err"; $("#searchMsg").textContent="El mapa no está disponible ahora."; return; }
-  picking = true; $("#modal").hidden = true; $("#pickingBar").hidden = false;
+  pickMode = mode; picking = true; $("#modal").hidden = true; $("#pickingBar").hidden = false;
+  $("#pickingBar span").textContent = mode === "adjust" ? "Toca el punto exacto del local" : "Toca en el mapa donde está el sitio";
   if (isMobile()) setSide(false);
   map.getContainer().style.cursor = "crosshair";
-};
+  if (mode === "adjust" && form.loc){
+    map.setView([form.loc.lat, form.loc.lng], 18);
+    pickMarker = L.circleMarker([form.loc.lat, form.loc.lng], {radius:9, color:"#fff", weight:3, fillColor:"#E8613C", fillOpacity:1}).addTo(map);
+  }
+}
+$("#btnPick").onclick = () => startPick("new");
 $("#btnPickCancel").onclick = endPick;
-function endPick(){ picking = false; $("#pickingBar").hidden = true; $("#modal").hidden = false; if (map) map.getContainer().style.cursor = ""; }
+function endPick(){
+  picking = false; $("#pickingBar").hidden = true; $("#modal").hidden = false;
+  if (map) map.getContainer().style.cursor = "";
+  if (pickMarker){ map.removeLayer(pickMarker); pickMarker = null; }
+}
 async function onMapClick(e){
   if (!picking) return;
   const {lat, lng} = e.latlng;
+  const mode = pickMode;
   endPick();
-  setLoc({lat, lng, name:"", address:"", fresh:true});
+  if (mode === "adjust" && form.loc){
+    form.loc.lat = lat; form.loc.lng = lng;
+    if (!form.loc.address) $("#locAddr").textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    locHint("Chincheta ajustada.");
+    if (form.loc.address) return;
+  } else {
+    setLoc({lat, lng, name:"", address:"", fresh:true});
+  }
   try {
     const r = await fetch(`https://photon.komoot.io/reverse?lat=${lat}&lon=${lng}&limit=1`);
     const d = await r.json(); const pr = d.features?.[0]?.properties;
