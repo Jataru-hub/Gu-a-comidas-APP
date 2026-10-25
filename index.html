@@ -58,12 +58,11 @@ h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance}
 #map{position:fixed;inset:0;background:#EEF0EC;z-index:0}
 .leaflet-container{font-family:var(--f-body);background:#EEF0EC}
 .leaflet-control-attribution{font-size:10px}
-/* App instalada en el iPhone: el mapa llega hasta arriba, bajo la hora y la batería, con un degradado suave para que se lean */
-body::before{content:"";position:fixed;left:0;right:0;top:0;height:max(0px, calc(env(safe-area-inset-top,0px) - 12px));background:linear-gradient(rgba(0,0,0,.24),rgba(0,0,0,.08) 65%,rgba(0,0,0,0));z-index:950;pointer-events:none}
+/* Sin difuminado propio: en la app instalada el iPhone ya oscurece/difumina la zona de la hora él solo */
 .map-error{position:fixed;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:var(--muted);z-index:1}
 
 /* Barra superior */
-.topbar{position:fixed;z-index:1000;top:calc(var(--sat) + 12px);left:max(12px,var(--sal));right:max(12px,var(--sar));
+.topbar{position:fixed;z-index:1000;top:calc(var(--sat) + 22px);left:max(12px,var(--sal));right:max(12px,var(--sar));
   display:flex;gap:8px;align-items:center;pointer-events:none;transition:left .25s ease}
 .topbar>*{pointer-events:auto}
 .brand{display:flex;align-items:center;gap:8px;background:var(--green);color:var(--green-ink);border-radius:14px;padding:0 12px;height:46px;box-shadow:var(--shadow);border:0}
@@ -579,7 +578,7 @@ h1,h2,h3{font-weight:500;letter-spacing:-.035em}
 (function(){
 "use strict";
 /* Súbelo en cada cambio: se ve abajo del todo, en la lista, para saber si el móvil ya tiene la última versión */
-const APP_VERSION = "Versión 7 · 25 oct 2026";
+const APP_VERSION = "Versión 8 · 25 oct 2026";
 const KEY = "guia-comidas-v1";
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
