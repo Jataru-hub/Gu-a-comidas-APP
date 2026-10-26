@@ -216,6 +216,10 @@ body.side-closed .toggle-side svg{transform:rotate(180deg)}
 .in{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:11px 12px;outline:none}
 .in:focus{border-color:var(--green)}
 textarea.in{min-height:76px;resize:vertical}
+.sheet-body{overflow-x:hidden}
+/* El selector de fecha del iPhone es más ancho de la cuenta: lo ajustamos al hueco */
+input[type="date"].in{-webkit-appearance:none;appearance:none;display:block;min-width:0;max-width:100%;min-height:46px;text-align:left}
+input[type="date"].in::-webkit-date-and-time-value{text-align:left}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .row2>*{min-width:0}
 @media (max-width:480px){.row2{grid-template-columns:1fr}}
@@ -523,12 +527,6 @@ h1,h2,h3{font-weight:500;letter-spacing:-.035em}
             <button type="button" data-v="hinchado">Me hinché</button>
           </div>
         </div>
-        <div class="field">
-          <label for="fDishIn">Lo que repetiría</label>
-          <div class="tags" id="tagsDish"></div>
-          <div class="sugg" id="dishSugg"></div>
-          <div class="tag-add"><input class="in" id="fDishIn" placeholder="Ej.: croquetas de jamón" enterkeyhint="done"><button type="button" class="btn" id="btnDishAdd">Añadir</button></div>
-        </div>
         <div class="row2">
           <div class="field">
             <label for="fDate">Última visita</label>
@@ -544,16 +542,16 @@ h1,h2,h3{font-weight:500;letter-spacing:-.035em}
         </div>
       </div>
 
-      <div class="field">
+      <div class="field" id="recField">
         <label for="fRec">Recomendado por</label>
         <input class="in" id="fRec" placeholder="Ej.: Pablo (opcional)">
       </div>
 
       <div class="field">
-        <label for="fRecDishIn">Comida recomendada</label>
-        <div class="tags" id="tagsRecDish"></div>
-        <div class="tag-add"><input class="in" id="fRecDishIn" placeholder="Ej.: croquetas de jamón" enterkeyhint="done"><button type="button" class="btn" id="btnRecDishAdd">Añadir</button></div>
-        <span class="hint">Lo que te han dicho que pidas. Puedes añadir varias.</span>
+        <label for="fDishIn" id="dishLbl">Lo que repetiría</label>
+        <div class="tags" id="tagsDish"></div>
+        <div class="tag-add"><input class="in" id="fDishIn" placeholder="Ej.: croquetas de jamón" enterkeyhint="done"><button type="button" class="btn" id="btnDishAdd">Añadir</button></div>
+        <span class="hint" id="dishHint">Puedes añadir varios.</span>
       </div>
 
       <div class="field">
@@ -578,7 +576,7 @@ h1,h2,h3{font-weight:500;letter-spacing:-.035em}
 (function(){
 "use strict";
 /* Súbelo en cada cambio: se ve abajo del todo, en la lista, para saber si el móvil ya tiene la última versión */
-const APP_VERSION = "Versión 9 · 25 oct 2026";
+const APP_VERSION = "Versión 10 · 26 oct 2026";
 const KEY = "guia-comidas-v1";
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -610,7 +608,7 @@ function examples(){
   const t = Date.now();
   return [
     {id:"ej1",example:true,name:"Trattoria Ejemplo",address:"Calle de Ejemplo 1, Valencia",lat:39.4745,lng:-0.3790,type:"Restaurante",status:"visitado",category:"Italiano",rating:5,price:2,hunger:"hinchado",dishes:["Carbonara de verdad"],recDishes:[],back:"si",visited:"2026-09-12",recommendedBy:"",notes:"Esto es un ejemplo: bórralo cuando quieras.",createdAt:t},
-    {id:"ej2",example:true,name:"Pizzería de Prueba",address:"Plaza de Prueba 3, Valencia",lat:39.4668,lng:-0.3712,type:"Restaurante",status:"pendiente",category:"Italiano",rating:0,price:null,hunger:null,dishes:[],recDishes:["Pizza diavola","Tiramisú"],back:null,visited:"",recommendedBy:"Pablo",notes:"Dicen que la masa es espectacular.",createdAt:t},
+    {id:"ej2",example:true,name:"Pizzería de Prueba",address:"Plaza de Prueba 3, Valencia",lat:39.4668,lng:-0.3712,type:"Restaurante",status:"pendiente",category:"Italiano",rating:0,price:null,hunger:null,dishes:["Pizza diavola","Tiramisú"],recDishes:[],back:null,visited:"",recommendedBy:"Pablo",notes:"Dicen que la masa es espectacular.",createdAt:t},
     {id:"ej3",example:true,name:"Bar La Muestra",address:"Calle Muestra 7, Valencia",lat:39.4712,lng:-0.3745,type:"Bar",status:"visitado",category:"",rating:4,price:1,hunger:"bien",dishes:["Croquetas de jamón"],recDishes:[],back:"si",visited:"2026-10-02",recommendedBy:"",notes:"",createdAt:t}
   ];
 }
@@ -627,6 +625,7 @@ try {
 places.forEach(p => {
   if (!Array.isArray(p.dishes)) p.dishes = p.dish ? [p.dish] : [];
   if (!Array.isArray(p.recDishes)) p.recDishes = [];
+  p.recDishes.forEach(d => { if (!p.dishes.some(x => norm(x) === norm(d))) p.dishes.push(d); }); p.recDishes = [];
   delete p.dish;
 });
 
@@ -782,7 +781,7 @@ function itemHTML(p){
   if (p.status === "pendiente") meta.push('<span class="tag-pend">Quiero ir</span>');
   else if (p.rating) meta.push(`<span class="stars-mini" aria-label="${p.rating} de 5">${starsTxt(p.rating)}</span>`);
   if (p.price) meta.push(PRICE[p.price]);
-  const d = p.dishes.length ? p.dishes : p.recDishes;
+  const d = p.dishes;
   if (d.length) meta.push(esc(d.join(", ")));
   return `<button class="item ${ui.selected===p.id?"active":""}" data-id="${esc(p.id)}" type="button">
     <span class="glyph ${p.status==="pendiente"?"pending":""}">${iconFor(p.type)}</span>
@@ -1030,10 +1029,9 @@ function renderDetail(){
     <div class="pills">${pills.join("")}</div>
     ${!visited?`<button class="btn visit" type="button" id="btnVisited"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Ya he ido · Valorarlo</button>`:""}
     ${hoursHTML(p)}
-    ${p.dishes.length?`<div class="dishbox"><div class="lbl">Para repetir</div>${dishList(p.dishes)}</div>`:""}
-    ${p.recDishes.length?`<div class="dishbox rec"><div class="lbl">${recLbl}</div>${dishList(p.recDishes)}</div>`:""}
+    ${p.dishes.length?(visited?`<div class="dishbox"><div class="lbl">Para repetir</div>${dishList(p.dishes)}</div>`:`<div class="dishbox rec"><div class="lbl">${recLbl}</div>${dishList(p.dishes)}</div>`):""}
     ${facts.length?`<div class="facts">${facts.join("")}</div>`:""}
-    ${p.recommendedBy && !p.recDishes.length?`<div class="fact"><div class="lbl">Recomendado por</div><div class="val">${esc(p.recommendedBy)}</div></div>`:""}
+    ${p.recommendedBy && (visited || !p.dishes.length)?`<div class="fact"><div class="lbl">Recomendado por</div><div class="val">${esc(p.recommendedBy)}</div></div>`:""}
     ${p.notes?`<div class="fact"><div class="lbl">Notas</div><div class="val notes" style="font-weight:400">${esc(p.notes)}</div></div>`:""}
     <div class="actions">
       <a class="btn primary" href="${esc(gmapsLink(p))}" target="_blank" rel="noopener">Abrir en Google Maps</a>
@@ -1134,8 +1132,15 @@ function segInit(id, key, toggle){
     let nv = toggle ? (String(form[key])===v ? null : v) : v;
     form[key] = (key==="price" && nv) ? +nv : nv;
     segPaint(id, key);
-    if (key === "status") $("#visitedFields").hidden = form.status !== "visitado";
+    if (key === "status") paintStatusFields();
   });
+}
+function paintStatusFields(){
+  const v = form.status === "visitado";
+  $("#visitedFields").hidden = !v;
+  $("#recField").hidden = v;
+  $("#dishLbl").textContent = v ? "Lo que repetiría" : "Comida recomendada";
+  $("#dishHint").textContent = v ? "Puedes añadir varios." : "Lo que te han dicho que pidas. Puedes añadir varios.";
 }
 function segPaint(id, key){ $(id).querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(String(form[key])===b.dataset.v))); }
 segInit("#segStatus","status",false); segInit("#segPrice","price",true); segInit("#segHunger","hunger",true); segInit("#segBack","back",true);
@@ -1148,7 +1153,6 @@ function paintStars(){ starIn.querySelectorAll("button").forEach(b => b.classLis
 function tagList(key, boxId, inputId, btnId){
   const box = $(boxId), input = $(inputId);
   const paint = () => {
-    if (key === "dishes") paintSugg();
     box.innerHTML = form[key].map((d,i) => `<span class="tag">${esc(d)}<button type="button" data-i="${i}" aria-label="Quitar ${esc(d)}">${XS}</button></span>`).join("");
   };
   const add = () => {
@@ -1161,14 +1165,7 @@ function tagList(key, boxId, inputId, btnId){
   box.addEventListener("click", e => { const b = e.target.closest("button[data-i]"); if (b){ form[key].splice(+b.dataset.i,1); paint(); } });
   return {paint, add};
 }
-function paintSugg(){
-  const sg = $("#dishSugg"); if (!sg) return;
-  const left = form.recDishes.filter(r => !form.dishes.some(d => norm(d) === norm(r)));
-  sg.innerHTML = left.length ? `<span>¿Te gustó lo recomendado?</span>` + left.map(r => `<button type="button" data-v="${esc(r)}">+ ${esc(r)}</button>`).join("") : "";
-}
-$("#dishSugg").addEventListener("click", e => { const b = e.target.closest("button[data-v]"); if (!b) return; form.dishes.push(b.dataset.v); dishTags.paint(); });
 const dishTags = tagList("dishes", "#tagsDish", "#fDishIn", "#btnDishAdd");
-const recTags = tagList("recDishes", "#tagsRecDish", "#fRecDishIn", "#btnRecDishAdd");
 
 function setLoc(loc){
   form.loc = loc;
@@ -1195,26 +1192,25 @@ function openForm(p, opts = {}){
   $("#fDate").value = p?.visited || "";
   $("#fRec").value = p?.recommendedBy || "";
   $("#fNotes").value = p?.notes || "";
-  $("#fDishIn").value = ""; $("#fRecDishIn").value = "";
+  $("#fDishIn").value = "";
   $("#fSearch").value = ""; $("#results").innerHTML = ""; $("#fUrl").value = ""; $("#urlBox").hidden = true;
   $("#searchMsg").textContent = "Escribe el nombre o, si no sale, su dirección (calle y número)."; $("#searchMsg").className = "msg";
   $("#formErr").hidden = true;
   Object.assign(form, { type:p?.type||"Restaurante", other:false, status:p?.status||"visitado", price:p?.price||null, hunger:p?.hunger||null, back:p?.back||null, rating:p?.rating||0,
-    dishes:[...(p?.dishes||[])], recDishes:[...(p?.recDishes||[])] });
+    dishes:[...(p?.dishes||[])] });
   $("#fTypeOther").value = "";
   renderTypeSeg();
   ["#segStatus:status","#segPrice:price","#segHunger:hunger","#segBack:back"].forEach(s=>{const [i,k]=s.split(":"); segPaint(i,k);});
-  paintStars(); dishTags.paint(); recTags.paint();
-  $("#visitedFields").hidden = form.status !== "visitado";
+  paintStars(); dishTags.paint();
+  paintStatusFields();
   $("#catList").innerHTML = [...new Set(places.map(x=>(x.category||"").trim()).filter(Boolean))].sort(cmp).map(c=>`<option value="${esc(c)}">`).join("");
   setLoc(p && typeof p.lat==="number" ? {lat:p.lat,lng:p.lng,name:p.name,address:p.address,gmapsUrl:p.gmapsUrl} : null);
   if (p) $("#locName").textContent = p.name;
   if (opts.visit){
     form.status = "visitado"; segPaint("#segStatus","status");
-    $("#visitedFields").hidden = false;
+    paintStatusFields();
     if (!$("#fDate").value) $("#fDate").value = new Date().toISOString().slice(0,10);
     $("#formTitle").textContent = "¿Qué tal fue?";
-    paintSugg();
   }
   $("#modal").hidden = false;
   $("#form .sheet-body").scrollTop = 0;
@@ -1244,7 +1240,7 @@ $("#form").addEventListener("submit", e => {
       if (!existing) customTypes.push(type);
     }
   }
-  dishTags.add(); recTags.add(); // lo que quedara escrito sin pulsar «Añadir»
+  dishTags.add(); // lo que quedara escrito sin pulsar «Añadir»
   const visited = form.status === "visitado";
   const old = form.editing ? places.find(x=>x.id===form.editing) : null;
   const p = {
@@ -1253,7 +1249,7 @@ $("#form").addEventListener("submit", e => {
     lat: form.loc.lat, lng: form.loc.lng, gmapsUrl: form.loc.gmapsUrl || "",
     type, status: form.status, category: $("#fCat").value.trim(),
     rating: visited ? form.rating : 0, price: visited ? form.price : null, hunger: visited ? form.hunger : null,
-    dishes: visited ? form.dishes : (old?.dishes || []), recDishes: form.recDishes, back: visited ? form.back : null,
+    dishes: form.dishes, recDishes: [], back: visited ? form.back : null,
     visited: visited ? ($("#fDate").value || "") : "",
     recommendedBy: $("#fRec").value.trim(), notes: $("#fNotes").value.trim(),
     website: old?.website || "", phone: old?.phone || "",
@@ -1470,6 +1466,7 @@ $("#fileImport").addEventListener("change", async e => {
       if (!p || !p.id || !p.name) return;
       if (!Array.isArray(p.dishes)) p.dishes = p.dish ? [p.dish] : [];
       if (!Array.isArray(p.recDishes)) p.recDishes = [];
+      p.recDishes.forEach(d => { if (!p.dishes.some(x => norm(x) === norm(d))) p.dishes.push(d); }); p.recDishes = [];
       delete p.dish; byId.set(p.id, p);
     });
     (d.types||[]).forEach(t => { if (!customTypes.some(x=>norm(x)===norm(t))) customTypes.push(t); });
